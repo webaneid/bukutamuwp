@@ -1,0 +1,13 @@
+{
+	"name": "bukutamu",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Build tooling (Tailwind CSS) untuk plugin WordPress Buku Tamu — Webane Indonesia.",
+	"scripts": {
+		"build": "tailwindcss -c src/tailwind.config.js -i src/input.css -o build/css/bukutamu.css --minify",
+		"watch": "tailwindcss -c src/tailwind.config.js -i src/input.css -o build/css/bukutamu.css --watch"
+	},
+	"devDependencies": {
+		"tailwindcss": "^3.4.0"
+	}
+}

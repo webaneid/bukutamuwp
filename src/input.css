@@ -1,0 +1,36 @@
+/**
+ * Sumber Tailwind. Hasil build: build/css/bukutamu.css (di-commit, tidak butuh Node di server
+ * produksi).
+ *
+ * `@tailwind base` disertakan HANYA untuk menyediakan titik sisip layer "base" bagi reset
+ * scoped kita di bawah — preflight tetap MATI (`corePlugins.preflight: false` di
+ * tailwind.config.js), jadi @tailwind base ini sendiri tidak menghasilkan reset global apa
+ * pun. Lihat CLAUDE.md Lessons Learned #18.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	/*
+	 * Reset margin bawaan browser (h1/h2/p/dll punya margin default di UA stylesheet, mis.
+	 * `h1 { margin: 0.67em 0 }`) — HANYA untuk elemen di dalam markup plugin ini sendiri,
+	 * BUKAN reset global. Tanpa ini, spacing yang diatur lewat utility Tailwind (space-y-*,
+	 * mt-*, mb-*) akan tercampur dengan margin default elemen, sehingga jarak terasa
+	 * "kejauhan" walau utility spacing-nya sudah dikecilkan — akar masalah yang sempat bikin
+	 * bingung, lihat Lessons Learned #18. Pakai :where() supaya spesifisitasnya tetap rendah
+	 * dan mudah di-override oleh utility class Tailwind biasa (mis. bt-mt-1) bila dibutuhkan.
+	 *
+	 * Tiga class scope:
+	 * - .bukutamu-form        → wrapper form [bukutamu_form]
+	 * - .bukutamu-testimoni   → wrapper grid kartu (testimoni, archive, DAN single native —
+	 *                           lihat CLAUDE.md Lessons Learned #19, dipakai ulang sengaja)
+	 * - .bukutamu-page        → wrapper generik untuk halaman "penuh" (standalone/archive/
+	 *                           single native) yang punya heading/teks di luar wrapper grid
+	 */
+	.bukutamu-form :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd),
+	.bukutamu-testimoni :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd),
+	.bukutamu-page :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd) {
+		margin: 0;
+	}
+}

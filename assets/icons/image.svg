@@ -1,0 +1,5 @@
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+	<rect x="3.5" y="4.5" width="17" height="15" rx="2"></rect>
+	<circle cx="9" cy="10" r="1.75"></circle>
+	<path d="m5 17 5-5 3.5 3.5L18 11l1.5 1.5"></path>
+</svg>

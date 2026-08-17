@@ -1,0 +1,225 @@
+{
+    "key": "group_bukutamu_entry",
+    "title": "Buku Tamu — Data Entri",
+    "fields": [
+        {
+            "key": "field_bukutamu_nama",
+            "label": "Nama",
+            "name": "nama",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "Nama lengkap pengunjung.",
+            "required": 1,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "50",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "150",
+            "placeholder": "Nama lengkap",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_bukutamu_nomor_hp",
+            "label": "Nomor HP",
+            "name": "nomor_hp",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "Nomor HP/WhatsApp yang bisa dihubungi.",
+            "required": 1,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "50",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "20",
+            "placeholder": "08xxxxxxxxxx",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_bukutamu_email",
+            "label": "Email",
+            "name": "email",
+            "aria-label": "",
+            "type": "email",
+            "instructions": "",
+            "required": 1,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "50",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "placeholder": "nama@email.com",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_bukutamu_instansi",
+            "label": "Instansi / Lembaga",
+            "name": "instansi",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "Kosongkan bila mewakili pribadi, bukan instansi.",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "50",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "150",
+            "placeholder": "Nama instansi/lembaga",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_bukutamu_kesan_pesan",
+            "label": "Kesan & Pesan",
+            "name": "kesan_pesan",
+            "aria-label": "",
+            "type": "textarea",
+            "instructions": "",
+            "required": 1,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "1000",
+            "placeholder": "Tuliskan kesan dan pesan Anda...",
+            "rows": 4,
+            "new_lines": "wpautop"
+        },
+        {
+            "key": "field_bukutamu_ttd",
+            "label": "Tanda Tangan",
+            "name": "ttd",
+            "aria-label": "",
+            "type": "image",
+            "instructions": "Diisi otomatis dari tanda tangan digital (canvas) pengunjung saat submit. Admin bisa mengganti manual bila perlu. TIDAK PERNAH ditampilkan di front-end mana pun (arsip/testimoni/single) — hanya terlihat di sini.",
+            "required": 1,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "50",
+                "class": "",
+                "id": ""
+            },
+            "return_format": "array",
+            "library": "all",
+            "min_width": "",
+            "min_height": "",
+            "min_size": "",
+            "max_width": "",
+            "max_height": "",
+            "max_size": "",
+            "mime_types": "png",
+            "preview_size": "medium"
+        },
+        {
+            "key": "field_bukutamu_galeri_foto",
+            "label": "Galeri Foto",
+            "name": "galeri_foto",
+            "aria-label": "",
+            "type": "gallery",
+            "instructions": "Foto dari pengunjung saat submit akan tampil di sini. Admin bisa menambah foto lain kapan saja. Di kartu arsip/testimoni hanya 1 foto ACAK yang ditampilkan (beda tiap kali halaman dimuat); galeri LENGKAP baru tampil saat entri ini dibuka satu per satu.",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "50",
+                "class": "",
+                "id": ""
+            },
+            "return_format": "array",
+            "library": "all",
+            "min": "",
+            "max": "8",
+            "min_width": "",
+            "min_height": "",
+            "min_size": "",
+            "max_width": "",
+            "max_height": "",
+            "max_size": "2",
+            "mime_types": "jpg,jpeg,png,webp",
+            "insert": "append",
+            "preview_size": "medium"
+        },
+        {
+            "key": "field_bukutamu_tanggal",
+            "label": "Tanggal Kunjungan",
+            "name": "tanggal_kunjungan",
+            "aria-label": "",
+            "type": "date_time_picker",
+            "instructions": "Diisi otomatis oleh sistem saat entri dibuat (waktu server), bukan input pengunjung.",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "50",
+                "class": "",
+                "id": ""
+            },
+            "display_format": "d/m/Y H:i",
+            "return_format": "Y-m-d H:i:s",
+            "first_day": 1
+        },
+        {
+            "key": "field_bukutamu_persetujuan",
+            "label": "Persetujuan Privasi",
+            "name": "persetujuan_privasi",
+            "aria-label": "",
+            "type": "true_false",
+            "instructions": "Dicentang oleh pengunjung sebelum submit sebagai bukti persetujuan pemakaian data.",
+            "required": 1,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "message": "Saya menyetujui data ini digunakan sesuai kebijakan privasi.",
+            "default_value": 0,
+            "ui": 1,
+            "ui_on_text": "",
+            "ui_off_text": ""
+        }
+    ],
+    "location": [
+        [
+            {
+                "param": "post_type",
+                "operator": "==",
+                "value": "buku_tamu"
+            }
+        ]
+    ],
+    "menu_order": 0,
+    "position": "normal",
+    "style": "default",
+    "label_placement": "top",
+    "instruction_placement": "label",
+    "hide_on_screen": [
+        "excerpt",
+        "discussion",
+        "comments",
+        "revisions",
+        "author",
+        "format",
+        "page_attributes",
+        "tags",
+        "send-trackbacks"
+    ],
+    "active": true,
+    "description": "Field data entri Buku Tamu. Dikelola via ACF Local JSON — lihat CLAUDE.md sebelum mengedit lewat UI.",
+    "show_in_rest": 0,
+    "modified": 1786907024
+}
