@@ -125,6 +125,7 @@ bukutamu/
 │   ├── class-shortcode.php       # [bukutamu_form] dan [bukutamu_testimoni]
 │   ├── class-assets.php          # Conditional enqueue CSS/JS via has_shortcode()
 │   ├── class-page-template.php   # Page template "Tanpa Header/Footer" (theme_page_templates/template_include)
+│   ├── class-updater.php         # Update checker via GitHub Releases — lihat bagian Sistem Update Plugin
 │   ├── class-admin.php           # ⬜ BELUM ADA — Fase 2 (kolom list table, quick-approve), masih pending
 │   └── helpers.php               # bukutamu_icon() / bukutamu_get_icon()
 ├── build/
@@ -520,7 +521,84 @@ mana yang me-render-nya.
     busting; kalau tidak dinaikkan, browser/CDN yang sudah cache `bukutamu.css`/JS versi lama
     bisa terus menyajikan versi basi meski isinya sudah berubah di server.
 
+### 2026-08-17 — Sistem update plugin (GitHub Releases)
+
+22. **`is_admin()` BUKAN cara yang tepat untuk "cuma jalan pas dibutuhkan" untuk hook terkait
+    update plugin.** Godaan pertama saat menulis `class-updater.php`: guard semua hook-nya
+    dengan `if ( is_admin() )` supaya "tidak membebani front-end". Ini SALAH — pengecekan
+    update otomatis WordPress (dua kali sehari) berjalan lewat WP-Cron (event
+    `wp_update_plugins`), dan `is_admin()` bernilai **false** selama eksekusi cron (cron bukan
+    request wp-admin). Kalau di-guard, background check tidak akan pernah jalan; update cuma
+    kedeteksi kalau admin kebetulan buka halaman wp-admin setelah cache transient kadaluarsa.
+    **Solusi yang benar:** load hook-nya unconditional. Tidak masalah untuk beban front-end —
+    hook seperti `pre_set_site_transient_update_plugins`/`plugins_api`/`upgrader_source_selection`
+    memang secara desain WordPress Core hanya PERNAH ter-fire dalam konteks admin/cron terkait
+    update, jadi otomatis inert (tidak pernah dipanggil) di request front-end publik meski
+    hook-nya didaftarkan — guard manual `is_admin()` di sini murni redundan sekaligus merusak
+    fungsi cron. **Aturan umum:** sebelum menambah guard `is_admin()`/`is_front_end()` demi
+    "optimisasi", pastikan dulu hook yang bersangkutan benar-benar TIDAK punya jalur eksekusi
+    valid di luar konteks yang ingin di-guard (termasuk WP-Cron, REST API, WP-CLI) — kalau
+    salah tebak, guard-nya diam-diam mematikan fitur alih-alih mengoptimalkan.
+23. **GitHub `zipball_url` selalu tersedia otomatis untuk tag apa pun tanpa perlu upload asset
+    ZIP manual** — tapi folder hasil ekstraknya bernama `{repo}-{hash}`, bukan nama slug
+    plugin. WAJIB di-rename lewat `upgrader_source_selection` sebelum WordPress memindahkannya
+    ke `wp-content/plugins/`, kalau tidak WordPress akan menganggapnya plugin BARU yang
+    terpisah (folder tidak cocok dengan basename plugin yang sudah aktif) — bukan meng-update
+    yang sudah ada, malah bisa menghasilkan DUA salinan plugin aktif berdampingan.
+24. **GitHub API dibatasi 60 request/jam tanpa token** — WAJIB di-cache (transient), termasuk
+    meng-cache KEGAGALAN request (durasi lebih pendek) supaya request yang gagal (GitHub
+    down/rate-limited/belum ada release sama sekali) tidak diulang di setiap page load
+    wp-admin. Tanpa ini, situs dengan trafik wp-admin tinggi bisa dengan mudah menghabiskan
+    jatah rate limit hanya dari mengecek update plugin ini berulang-ulang.
+25. **Update HANYA terdeteksi dari GitHub *Release* (tag resmi), bukan commit/push biasa ke
+    `main`.** Ini keputusan desain sengaja (bukan keterbatasan) — supaya update yang ditawarkan
+    ke pengguna plugin selalu versi yang benar-benar dimaksudkan rilis stabil, bukan commit
+    percobaan/WIP yang kebetulan ter-push. Konsekuensinya: checklist rilis WAJIB tiga langkah
+    (naikkan `BUKUTAMU_VERSION` → push → buat GitHub Release dengan tag `vX.Y.Z`) — push saja
+    TIDAK CUKUP, plugin tidak akan pernah tahu ada versi baru kalau langkah Release dilewat.
+
 <!-- Tambahkan entri baru di bawah ini seiring development berjalan -->
+
+## Sistem Update Plugin (GitHub Releases)
+
+Plugin ini tidak di-hosting di WordPress.org, jadi WordPress tidak tahu cara mengecek versi
+baru secara native. `includes/class-updater.php` (`Bukutamu_Updater`) menyuntikkan info update
+ke mekanisme WP Core yang SAMA dipakai plugin resmi (`pre_set_site_transient_update_plugins`,
+`plugins_api`) — jadi "Ada pembaruan tersedia" + tombol **Update Now** muncul normal di halaman
+Plugins wp-admin, tanpa UI custom tambahan dan tanpa library eksternal (mis. Plugin Update
+Checker) — selaras prinsip "ringan".
+
+**Sumber data:** GitHub Releases API — `GET /repos/webaneid/bukutamuwp/releases/latest`
+(`Bukutamu_Updater::GITHUB_REPO`). Repo publik, jadi tidak butuh token/autentikasi untuk cek
+maupun download.
+
+**WAJIB setiap merilis versi baru:**
+1. Naikkan `BUKUTAMU_VERSION` di `bukutamu.php`.
+2. Push ke `main`.
+3. Buat GitHub Release dengan tag versi **berprefix `v`** (mis. `v0.3.0` untuk
+   `BUKUTAMU_VERSION = '0.3.0'` — prefix "v" di-strip otomatis saat `version_compare()`, lihat
+   `get_remote_version()`).
+
+Tanpa Release baru (bukan cuma commit/push biasa), plugin TIDAK AKAN PERNAH terdeteksi ada
+update — `class-updater.php` khusus membaca endpoint "latest release", bukan commit/branch
+terbaru. Ini konsekuensi memilih GitHub Releases (bukan "watch commit terbaru di branch") —
+sengaja, supaya update hanya terjadi untuk rilis yang benar-benar dimaksudkan stabil, bukan
+setiap commit percobaan.
+
+**Mekanisme teknis penting:**
+- Cache 12 jam lewat transient (`bukutamu_github_release`) — GitHub API dibatasi 60
+  request/jam untuk request tanpa token; tanpa cache, cek update bisa kena rate limit.
+  Kegagalan request juga di-cache (15 menit) supaya tidak mengulang request gagal terus-
+  menerus setiap page load wp-admin selama GitHub down/rate-limited.
+- Hook-hook di sini SENGAJA di-load unconditional (bukan di-guard `is_admin()`) — pengecekan
+  update otomatis WordPress berjalan lewat WP-Cron ('wp_update_plugins' event), yang BUKAN
+  konteks `is_admin()`. Kalau di-guard, cek update background dua-kali-sehari tidak akan
+  pernah jalan.
+- `zipball_url` dari GitHub API dipakai sebagai paket download — otomatis tersedia untuk
+  SETIAP tag/release tanpa perlu upload asset ZIP manual, tapi folder hasil ekstraknya
+  bernama `{repo}-{hash-singkat}`, bukan `bukutamu`. Filter `upgrader_source_selection`
+  me-rename folder itu sebelum WordPress memindahkannya ke `wp-content/plugins/` — tanpa ini,
+  WordPress akan menginstal plugin BARU yang terpisah, bukan meng-update yang sudah aktif.
 
 ## Roadmap Implementasi
 
@@ -551,6 +629,10 @@ mana yang me-render-nya.
    diganti atas permintaan user pada 2026-08-17 — lihat Lessons Learned #19).
 7. ⬜ **Opsional/masa depan** — Gutenberg block sebagai wrapper shortcode, export CSV dari wp-admin,
    WP-CLI command, dan Fase 2 (Admin UX) yang tertunda.
+8. ✅ **Sistem update plugin** — lihat bagian "Sistem Update Plugin (GitHub Releases)". Diuji
+   lewat request langsung ke GitHub API + simulasi filter `pre_set_site_transient_update_plugins`
+   & `plugins_api` di runtime WP sungguhan (bukan cuma lint statis) — termasuk skenario gagal
+   (belum ada release → 404, ditangani dengan aman tanpa menandai update palsu).
 
 ## Kredit
 

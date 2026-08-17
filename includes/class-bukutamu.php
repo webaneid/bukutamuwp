@@ -33,6 +33,7 @@ final class Bukutamu {
 		require_once BUKUTAMU_PATH . 'includes/class-shortcode.php';
 		require_once BUKUTAMU_PATH . 'includes/class-assets.php';
 		require_once BUKUTAMU_PATH . 'includes/class-page-template.php';
+		require_once BUKUTAMU_PATH . 'includes/class-updater.php';
 	}
 
 	public function boot(): void {
@@ -45,6 +46,7 @@ final class Bukutamu {
 		Bukutamu_Shortcode::instance();
 		Bukutamu_Assets::instance();
 		Bukutamu_Page_Template::instance();
+		Bukutamu_Updater::instance();
 	}
 
 	/**
