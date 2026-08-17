@@ -722,6 +722,48 @@ mana yang me-render-nya.
     apakah masalahnya di data tersimpan atau di transformasi saat baca/tampil — dua penyebab itu
     butuh perbaikan yang sama sekali berbeda.
 
+### 2026-08-17 — Diagnosis "redirect tidak jalan" di situs produksi tanpa akses server
+
+31. **User melaporkan redirect ke halaman terima kasih tidak jalan di `pmdarulfalah.com`
+    (situs produksi terpisah, BUKAN situs development tempat kerja sesi ini) plus error 429 di
+    console.** Tidak ada akses SSH/WP-CLI/filesystem ke situs itu — diagnosis dilakukan MURNI
+    lewat `curl` ke URL publik halaman tersebut (`curl -s -A "Mozilla/5.0" URL`), grep pola
+    spesifik di HTML mentah yang dikembalikan:
+    - `?ver=` pada URL aset ter-enqueue (`bukutamu.css?ver=0.2.5`, dst.) → konfirmasi kode
+      plugin di server itu SUDAH ter-update ke versi yang mengandung fitur redirect (bukan
+      versi lama yang memang belum punya fiturnya).
+    - Atribut `data-redirect-url` pada tag `<form class="bukutamu-form">` → TIDAK ADA sama
+      sekali. Ini membuktikan root cause BUKAN cache atau bug kode, melainkan shortcode di
+      Page itu masih `[bukutamu_form]` polos (belum diedit admin situs itu untuk menambahkan
+      atribut `redirect="URL"`) — persis seperti kondisi `isi-buku-tamu` di situs development
+      SEBELUM saya update kontennya (lihat Lessons Learned #29).
+    - Tebak beberapa slug Page tujuan redirect yang mungkin (`terima-kasih`,
+      `terima-kasih-buku-tamu`, `thank-you`) via `curl -o /dev/null -w "%{http_code}"` →
+      semuanya 404, konfirmasi Page "Terima Kasih" memang belum pernah dibuat di situs itu.
+    - Cek teks heading ("Silakan isi buku tamu kunjungan Anda") masih muncul di HTML → konfirmasi
+      atribut `judul="0"` juga belum ditambahkan, situs itu masih pakai shortcode versi lama
+      apa adanya, cocok dengan kesimpulan "belum pernah diedit sejak fitur redirect dirilis".
+    Error 429-nya sendiri disimpulkan (bukan diverifikasi langsung, karena tidak ada akses log
+    server) sebagai `Bukutamu_Security::RATE_LIMIT_MAX` (1 submission/60 detik per IP) yang
+    kepicu wajar karena user submit form berulang kali dalam <60 detik saat menguji redirect
+    yang belum terkonfigurasi — bukan bug, tapi disebut eksplisit sebagai KESIMPULAN BERBASIS
+    LOGIKA (kode rate-limit + skenario testing yang cocok), bukan fakta yang diverifikasi
+    langsung, supaya sesi berikutnya tahu bedanya kalau ternyata dugaan ini salah nanti.
+    **Aturan umum untuk debug situs produksi TANPA akses server:** `curl`/WebFetch ke URL
+    publik masih bisa mengungkap banyak hal lewat HTML yang sudah dirender — versi plugin
+    (`?ver=` pada aset), apakah suatu fitur opt-in sudah dikonfigurasi (cek atribut/markup
+    yang jadi penanda fitur itu aktif), dan status Page terkait (lewat HTTP status code) —
+    tanpa perlu kredensial apa pun, SELAMA halamannya publik. **WebFetch (yang mengonversi HTML
+    ke markdown lewat model kecil) TIDAK cocok untuk ini** — ia membuang atribut HTML mentah
+    yang justru paling dibutuhkan untuk diagnosis semacam ini; pakai `curl` mentah + `grep`
+    pola spesifik saat butuh memeriksa atribut/markup persis, bukan cuma "isi teks halaman".
+    **Aturan umum untuk fitur opt-in per situs (redirect, dan pola serupa di masa depan):**
+    selalu ingatkan user secara eksplisit bahwa meng-update KODE plugin tidak otomatis
+    mengaktifkan fitur yang butuh konfigurasi KONTEN (Page/atribut shortcode) — dua hal itu
+    independen, dan user bisa salah kira "sudah update plugin" berarti "fiturnya otomatis aktif
+    di semua situs", padahal architecture plugin ini sengaja selalu lewat Page + shortcode
+    admin-editable (lihat Lessons Learned #29), bukan auto-provisioning konten.
+
 <!-- Tambahkan entri baru di bawah ini seiring development berjalan -->
 
 ## Sistem Update Plugin (GitHub Releases)
@@ -823,9 +865,16 @@ kalau ingin lanjut development di situ).
    sungguhan, halaman archive/single/feed diuji lewat `curl` HTTP request nyata ke situs
    development (termasuk verifikasi HP/email TIDAK bocor di halaman single, dibandingkan
    dengan nilai field asli — bukan cuma grep pola generik), filter sitemap diuji lewat
-   `apply_filters()` runtime. **Belum dijalankan**: submit form sungguhan lewat browser
-   (signature pad, upload foto dari UI), audit aksesibilitas (kontras warna, navigasi keyboard
-   untuk canvas tanda tangan, screen reader), uji di berbagai ukuran layar.
+   `apply_filters()` runtime. **2026-08-17:** submission end-to-end (nonce → honeypot/timing →
+   validasi field → tanda tangan → upload galeri → `wp_insert_post`) diuji lewat `curl` yang
+   mereplikasi persis alur `bukutamu-form.js` sungguhan (load halaman → ambil nonce asli →
+   tunggu jeda anti-bot → POST multipart dengan file gambar asli), bukan cuma baca kode —
+   berhasil menemukan & memperbaiki 3 bug nyata (nonce `X-WP-Nonce` saat admin ikut login,
+   batas ukuran file 2MB terlalu kecil, tag `<p>` bocor dari `wpautop` ACF) yang tidak akan
+   ketahuan dari lint statis maupun asumsi "kodenya terlihat benar". **Masih belum dijalankan**:
+   submit form dari UI browser sungguhan (klik signature pad/upload foto langsung, bukan lewat
+   curl), audit aksesibilitas (kontras warna, navigasi keyboard untuk canvas tanda tangan,
+   screen reader), uji di berbagai ukuran layar.
 6. ✅ **Arsip native CPT** — archive (`/buku-tamu/`) & single (`/buku-tamu/{slug}/`), lihat
    bagian "Alur Tampilan Arsip". Di luar rencana awal (awalnya shortcode `[bukutamu_arsip]`,
    diganti atas permintaan user pada 2026-08-17 — lihat Lessons Learned #19).
@@ -834,7 +883,17 @@ kalau ingin lanjut development di situ).
 8. ✅ **Sistem update plugin** — lihat bagian "Sistem Update Plugin (GitHub Releases)". Diuji
    lewat request langsung ke GitHub API + simulasi filter `pre_set_site_transient_update_plugins`
    & `plugins_api` di runtime WP sungguhan (bukan cuma lint statis) — termasuk skenario gagal
-   (belum ada release → 404, ditangani dengan aman tanpa menandai update palsu).
+   (belum ada release → 404, ditangani dengan aman tanpa menandai update palsu). Tautan "Cek
+   Update" manual di baris plugin ditambahkan v0.2.5. Rilis v0.2.4/v0.2.5 sudah diverifikasi
+   benar-benar terpasang & terdeteksi di deployment produksi sungguhan (pmdarulfalah.com, bukan
+   cuma situs development) lewat pengecekan `?ver=` pada aset yang ter-enqueue.
+9. ✅ **Redirect ke halaman "Terima Kasih"** — shortcode `[bukutamu_terima_kasih]` + atribut
+   `[bukutamu_form redirect="URL"]`, opsional & backward compatible. Lihat bagian "Halaman
+   Standalone" dan Lessons Learned #29. **Perlu diingat:** ini fitur opt-in PER SITUS — setiap
+   instalasi (termasuk situs klien yang sudah ada sebelum fitur ini rilis, mis. pmdarulfalah.com)
+   harus membuat Page "Terima Kasih" sendiri dan menambahkan atribut `redirect` secara manual di
+   wp-admin; update plugin ke versi baru TIDAK otomatis mengaktifkan redirect di halaman yang
+   sudah ada sebelumnya.
 
 ## Kredit
 
