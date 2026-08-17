@@ -108,9 +108,12 @@ Catatan desain:
 bukutamu/
 ├── bukutamu.php                  # Bootstrap plugin, header, hooks aktivasi
 ├── uninstall.php                 # Bersihkan opsi & (opsional) data saat uninstall
-├── CLAUDE.md
+├── CLAUDE.md                     # Dokumen ini — arsitektur, keputusan desain, lessons learned
+├── README.md                     # Dokumentasi ringkas untuk GitHub (fitur, instalasi, development)
 ├── package.json / package-lock.json  # Dev-only, untuk build Tailwind (lihat .gitignore: node_modules/)
 ├── .gitignore
+├── bin/
+│   └── release.sh                # Build & publish rilis ke GitHub Releases — lihat Sistem Update Plugin
 ├── acf-json/
 │   └── group_bukutamu_entry.json
 ├── includes/
@@ -556,6 +559,23 @@ mana yang me-render-nya.
     percobaan/WIP yang kebetulan ter-push. Konsekuensinya: checklist rilis WAJIB tiga langkah
     (naikkan `BUKUTAMU_VERSION` → push → buat GitHub Release dengan tag `vX.Y.Z`) — push saja
     TIDAK CUKUP, plugin tidak akan pernah tahu ada versi baru kalau langkah Release dilewat.
+26. **Rilis pertama (`v0.2.1`) awalnya dibuat tanpa asset ZIP** (`gh release create` polos) —
+    secara TEKNIS sistem cek-update tetap berfungsi (berkat mitigasi `upgrader_source_selection`
+    di #23), jadi tidak ketahuan ada masalah dari sudut pandang "apakah kode auto-update-nya
+    jalan". Baru ketahuan kurang tepat setelah user bertanya konkret **"saya bisa download dan
+    install?"** — pertanyaan itu memaksa mengecek dari sudut pandang PENGGUNA AKHIR (download
+    manual dari halaman Release, bukan lewat mekanisme auto-update), dan di situ baru terlihat
+    dua masalah nyata: file dev ikut ter-bundle, dan nama folder hasil ekstrak tidak rapi.
+    **Perbaikan:** `bin/release.sh` — build script yang mem-package ulang jadi `bukutamu.zip`
+    bersih (isi persis sama seperti struktur folder plugin yang benar) dan upload sebagai
+    asset Release; `Bukutamu_Updater::get_package_url()` diubah supaya prioritas pakai asset
+    itu, `zipball_url` jadi fallback saja.
+    **Aturan umum:** "sistem update berfungsi" dan "hasil rilis siap didistribusikan ke
+    pengguna akhir" adalah DUA klaim berbeda yang butuh verifikasi terpisah. Setelah
+    membangun/menguji mekanisme internal (filter, transient, version_compare), tetap lakukan
+    satu langkah lagi: coba dari sudut pandang paling naif — "kalau saya orang lain yang baru
+    tahu plugin ini, apa yang saya dapat kalau saya klik download sekarang?" — sebelum
+    menganggap fitur benar-benar selesai.
 
 <!-- Tambahkan entri baru di bawah ini seiring development berjalan -->
 
