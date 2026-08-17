@@ -58,6 +58,18 @@ final class Bukutamu_Assets {
 			'bukutamuFormConfig',
 			[
 				'restUrl'          => esc_url_raw( rest_url( Bukutamu_Rest_Api::API_NAMESPACE . Bukutamu_Rest_Api::ROUTE ) ),
+				// Nonce standar WP Core (action 'wp_rest'), BUKAN nonce anti-bot custom
+				// ('bukutamu_submit', lihat Bukutamu_Security). Wajib dikirim sebagai header
+				// X-WP-Nonce agar rest_cookie_check_errors() di WP Core tidak diam-diam
+				// me-reset current user ke 0 saat pengunjung KEBETULAN juga login wp-admin
+				// di browser yang sama (mis. admin sendiri sedang menguji form publik) —
+				// tanpa header ini, reset itu membuat nonce 'bukutamu_submit' yang sudah
+				// dirender saat page load (untuk uid login) tidak pernah cocok lagi saat
+				// diverifikasi (uid sudah dipaksa 0), selalu gagal dengan 403 "Sesi form
+				// kedaluwarsa" walau nonce sebenarnya masih baru. Untuk pengunjung publik
+				// yang benar-benar anonim, header ini tidak berpengaruh apa pun (tidak ada
+				// cookie login yang bisa memicu pengecekan ini).
+				'restNonce'        => wp_create_nonce( 'wp_rest' ),
 				'maxFiles'         => Bukutamu_Uploads::MAX_FILES,
 				'maxFileSizeBytes' => Bukutamu_Uploads::MAX_FILE_SIZE,
 				'i18n'             => [
@@ -108,6 +120,10 @@ final class Bukutamu_Assets {
 		if ( has_shortcode( $post->post_content, 'bukutamu_testimoni' ) ) {
 			$this->enqueue_grid();
 		}
+
+		if ( has_shortcode( $post->post_content, 'bukutamu_terima_kasih' ) ) {
+			$this->enqueue_terima_kasih();
+		}
 	}
 
 	private function enqueue_form(): void {
@@ -128,5 +144,13 @@ final class Bukutamu_Assets {
 	private function enqueue_single(): void {
 		wp_enqueue_style( 'bukutamu' );
 		wp_enqueue_script( 'bukutamu-lightbox' );
+	}
+
+	/**
+	 * Halaman "Terima kasih" tujuan redirect ([bukutamu_terima_kasih]) — CSS saja, cuma
+	 * ikon+teks+tombol tautan biasa, tidak ada interaksi JS apa pun.
+	 */
+	private function enqueue_terima_kasih(): void {
+		wp_enqueue_style( 'bukutamu' );
 	}
 }

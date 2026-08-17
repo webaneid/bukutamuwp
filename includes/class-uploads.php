@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 final class Bukutamu_Uploads {
 
 	const MAX_FILES     = 5;
-	const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB — selaras dengan max_size di acf-json gallery field.
+	const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB — selaras dengan max_size di acf-json gallery field.
 
 	const ALLOWED_MIMES = [
 		'jpg|jpeg' => 'image/jpeg',

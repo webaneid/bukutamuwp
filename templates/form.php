@@ -9,6 +9,9 @@
  *
  * Variabel $tampilkan_judul disiapkan oleh Bukutamu_Shortcode::render_form() dari atribut
  * shortcode `judul` (default tampil) — dimatikan di halaman yang sudah punya judul sendiri.
+ * Variabel $redirect_url (opsional) disiapkan dari atribut shortcode `redirect` — dirender
+ * sebagai atribut `data-redirect-url` di elemen <form>, dibaca oleh bukutamu-form.js untuk
+ * redirect browser setelah submit berhasil (lihat Bukutamu_Shortcode::render_form()).
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -17,7 +20,8 @@ $form_id   = 'bukutamu-form-' . wp_unique_id();
 $loaded_at = time();
 ?>
 <div class="bt-mx-auto bt-w-full bt-max-w-2xl bt-font-sans bt-text-slate-800">
-	<form id="<?php echo esc_attr( $form_id ); ?>" class="bukutamu-form bt-space-y-6 bt-rounded-2xl bt-border bt-border-slate-200 bt-bg-white bt-p-6 bt-shadow-sm sm:bt-p-8" novalidate>
+	<form id="<?php echo esc_attr( $form_id ); ?>" class="bukutamu-form bt-space-y-6 bt-rounded-2xl bt-border bt-border-slate-200 bt-bg-white bt-p-6 bt-shadow-sm sm:bt-p-8" novalidate
+		<?php echo ! empty( $redirect_url ) ? 'data-redirect-url="' . esc_url( $redirect_url ) . '"' : ''; ?>>
 
 		<?php if ( $tampilkan_judul ) : ?>
 			<div class="bt-space-y-1">
@@ -95,9 +99,10 @@ $loaded_at = time();
 			</label>
 			<label class="bukutamu-form__dropzone bt-flex bt-cursor-pointer bt-flex-col bt-items-center bt-justify-center bt-gap-2 bt-rounded-lg bt-border-2 bt-border-dashed bt-border-slate-300 bt-bg-slate-50 bt-px-4 bt-py-6 bt-text-center bt-text-sm bt-text-slate-500 hover:bt-border-slate-400">
 				<?php bukutamu_icon( 'upload', 'bt-h-6 bt-w-6 bt-text-slate-400' ); ?>
-				<span><?php esc_html_e( 'Klik atau seret foto ke sini (maks. 5 foto, @2MB)', 'bukutamu' ); ?></span>
+				<span><?php esc_html_e( 'Klik atau seret foto ke sini (maks. 5 foto, @5MB)', 'bukutamu' ); ?></span>
 				<input type="file" accept="image/jpeg,image/png,image/webp" multiple class="bt-hidden">
 			</label>
+			<p class="bukutamu-form__file-error bt-hidden bt-text-xs bt-text-rose-600" role="alert" aria-live="polite"></p>
 			<div class="bukutamu-form__preview bt-grid bt-grid-cols-3 bt-gap-2 sm:bt-grid-cols-5"></div>
 		</div>
 

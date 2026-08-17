@@ -149,7 +149,7 @@
             "min_size": "",
             "max_width": "",
             "max_height": "",
-            "max_size": "2",
+            "max_size": "5",
             "mime_types": "jpg,jpeg,png,webp",
             "insert": "append",
             "preview_size": "medium"
@@ -221,5 +221,5 @@
     "active": true,
     "description": "Field data entri Buku Tamu. Dikelola via ACF Local JSON — lihat CLAUDE.md sebelum mengedit lewat UI.",
     "show_in_rest": 0,
-    "modified": 1786907024
+    "modified": 1786942152
 }

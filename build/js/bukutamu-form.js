@@ -25,6 +25,7 @@
 		var submitLabel = form.querySelector( '.bukutamu-form__submit-label' );
 		var spinner = form.querySelector( '.bukutamu-form__spinner' );
 		var fileInput = form.querySelector( '.bukutamu-form__dropzone input[type="file"]' );
+		var fileErrorBox = form.querySelector( '.bukutamu-form__file-error' );
 		var previewBox = form.querySelector( '.bukutamu-form__preview' );
 		var canvas = form.querySelector( '.bukutamu-form__signature-pad' );
 		var clearBtn = form.querySelector( '.bukutamu-form__signature-clear' );
@@ -48,6 +49,20 @@
 		function hideAlert() {
 			if ( alertBox ) {
 				alertBox.classList.add( 'bt-hidden' );
+			}
+		}
+
+		function showFileError( message ) {
+			if ( ! fileErrorBox ) {
+				return;
+			}
+			fileErrorBox.textContent = message;
+			fileErrorBox.classList.remove( 'bt-hidden' );
+		}
+
+		function hideFileError() {
+			if ( fileErrorBox ) {
+				fileErrorBox.classList.add( 'bt-hidden' );
 			}
 		}
 
@@ -91,15 +106,17 @@
 			fileInput.addEventListener( 'change', function () {
 				var incoming = Array.prototype.slice.call( fileInput.files );
 				var maxFiles = config.maxFiles || 5;
-				var maxSize = config.maxFileSizeBytes || 2 * 1024 * 1024;
+				var maxSize = config.maxFileSizeBytes || 5 * 1024 * 1024;
+
+				hideFileError();
 
 				incoming.forEach( function ( file ) {
 					if ( selectedFiles.length >= maxFiles ) {
-						showAlert( i18n.tooManyFiles || 'Maksimum jumlah foto tercapai.', 'error' );
+						showFileError( i18n.tooManyFiles || 'Maksimum jumlah foto tercapai.' );
 						return;
 					}
 					if ( file.size > maxSize ) {
-						showAlert( i18n.fileTooLarge || 'Ukuran foto terlalu besar.', 'error' );
+						showFileError( i18n.fileTooLarge || 'Ukuran foto terlalu besar.' );
 						return;
 					}
 					selectedFiles.push( file );
@@ -157,6 +174,9 @@
 				method: 'POST',
 				body: formData,
 				credentials: 'same-origin',
+				headers: {
+					'X-WP-Nonce': config.restNonce || '',
+				},
 			} )
 				.then( function ( response ) {
 					return response.json().then( function ( body ) {
@@ -165,9 +185,15 @@
 				} )
 				.then( function ( result ) {
 					if ( result.ok && result.body && result.body.success ) {
+						var redirectUrl = form.getAttribute( 'data-redirect-url' );
+						if ( redirectUrl ) {
+							window.location.href = redirectUrl;
+							return;
+						}
 						showAlert( result.body.message, 'success' );
 						form.reset();
 						selectedFiles = [];
+						hideFileError();
 						renderPreview();
 						if ( pad ) {
 							pad.clear();

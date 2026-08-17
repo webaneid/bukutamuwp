@@ -142,6 +142,7 @@ bukutamu/
 │   └── input.css
 ├── templates/
 │   ├── form.php
+│   ├── terima-kasih.php          # Untuk shortcode [bukutamu_terima_kasih] — tujuan redirect setelah submit
 │   ├── testimoni-grid.php        # Untuk shortcode [bukutamu_testimoni]
 │   ├── testimoni-card.php        # Dipakai ulang oleh testimoni, archive native, DAN single native
 │   ├── archive-buku_tamu.php     # Archive native (/buku-tamu/) — panggil get_header()/get_footer() tema
@@ -169,7 +170,11 @@ bukutamu/
      `wp_upload_bits()` + `wp_insert_attachment()`.
    - `wp_insert_post()` dengan `post_status => 'pending'`, lalu `update_field()` untuk semua field ACF.
    - Set `tanggal_kunjungan` = waktu server saat itu (bukan dari input client).
-5. Response sukses → tampilkan pesan "Terima kasih, menunggu persetujuan admin" (bukan langsung tampil).
+5. Response sukses → default: tampilkan pesan "Terima kasih, menunggu persetujuan admin" inline di
+   form (bukan langsung tampil di testimoni/arsip, karena masih `pending`). Kalau shortcode dipasang
+   dengan atribut `redirect="URL"` (lihat bagian "Halaman Standalone"), browser diarahkan
+   (`window.location.href`) ke URL itu alih-alih menampilkan pesan inline — biasanya Page dengan
+   `[bukutamu_terima_kasih]`.
 6. Admin membuka wp-admin → daftar `buku_tamu` dengan status Pending → review → Publish atau Trash.
 
 ## Alur Tampilan Testimoni (Publik)
@@ -246,9 +251,18 @@ Cara pakai (admin):
 1. Buat Page baru di wp-admin, judul Page-nya "Buku Tamu" (atau apa pun — ini yang tampil
    sebagai H1 dekoratif di halaman standalone).
 2. Isi konten Page dengan salah satu shortcode:
-   - `[bukutamu_form judul="0"]` — form isi buku tamu. Atribut `judul="0"` WAJIB di sini,
-     mematikan heading "Buku Tamu" bawaan di dalam card form (halaman standalone sudah punya
-     heading-nya sendiri: H1 + nama situs; tanpa atribut ini judul tampil dobel).
+   - `[bukutamu_form judul="0" redirect="URL"]` — form isi buku tamu. Atribut `judul="0"`
+     WAJIB di sini, mematikan heading "Buku Tamu" bawaan di dalam card form (halaman
+     standalone sudah punya heading-nya sendiri: H1 + nama situs; tanpa atribut ini judul
+     tampil dobel). Atribut `redirect` OPSIONAL — isi dengan permalink Page "Terima Kasih"
+     (lihat poin berikutnya) supaya setelah submit BERHASIL browser otomatis diarahkan ke
+     sana; dikosongkan/tidak diisi = perilaku lama tetap jalan (pesan sukses tampil inline
+     di form, tanpa redirect, backward compatible).
+   - `[bukutamu_terima_kasih]` — halaman "Terima kasih" tujuan redirect di atas: ikon
+     centang, pesan "Terima kasih, Jazakumullahu Khairon — Buku tamu berhasil diisi.", dan
+     tombol ke archive native `/buku-tamu/`. Dipasang di Page TERPISAH dari Page form (mis.
+     slug `terima-kasih-buku-tamu`), pakai template standalone yang sama seperti poin 3 di
+     bawah. Lihat `templates/terima-kasih.php` / `Bukutamu_Shortcode::render_terima_kasih()`.
    - `[bukutamu_testimoni]` — showcase testimoni terbatas penuh layar (tidak perlu atribut
      `judul`, template ini tidak punya heading bawaan). Untuk arsip LENGKAP dengan paginasi,
      pakai archive native `/buku-tamu/` (lihat bagian "Alur Tampilan Arsip"), bukan halaman
@@ -576,6 +590,102 @@ mana yang me-render-nya.
     satu langkah lagi: coba dari sudut pandang paling naif — "kalau saya orang lain yang baru
     tahu plugin ini, apa yang saya dapat kalau saya klik download sekarang?" — sebelum
     menganggap fitur benar-benar selesai.
+
+### 2026-08-17 — Foto tidak muncul di preview: batas ukuran file terlalu kecil & pesan error salah tempat
+
+27. **User melaporkan "foto tidak masuk ke upload" setelah memilih foto dari galeri HP/Mac** —
+    diagnosis dimulai dengan reproduksi END-TO-END sungguhan lewat `curl` (bukan cuma baca
+    kode): load halaman form → ambil nonce/timestamp asli dari HTML → tunggu >3 detik → POST
+    multipart ke `/wp-json/bukutamu/v1/submit` dengan foto asli. Hasilnya endpoint & pipeline
+    upload TERBUKTI berfungsi normal (file tersimpan ke `wp-content/uploads/`, jadi attachment
+    Media Library, field ACF `galeri_foto` terisi) — jadi bukan bug di REST/upload handler.
+    **Root cause sebenarnya ada di JS, sebelum request terkirim sama sekali:**
+    `Bukutamu_Uploads::MAX_FILE_SIZE` di-set 2MB (selaras `max_size` ACF gallery field),
+    padahal foto kamera HP/Mac modern lazimnya 3–8MB. `bukutamu-form.js` MEMANG menolak file
+    yang kelebihan ukuran (`showAlert` dipanggil), tapi pesannya tampil di kotak alert PALING
+    ATAS form (dekat judul) — jauh dari drop-zone/area preview foto yang sedang dilihat user.
+    Akibatnya file ditolak secara diam-diam dari sudut pandang user: tidak ada di
+    `selectedFiles`, tidak pernah muncul di preview, dan pesan error-nya tidak disadari ada.
+    **Perbaikan:**
+    - `MAX_FILE_SIZE` dinaikkan 2MB → **5MB** (PHP `class-uploads.php` DAN `max_size` di
+      `acf-json/group_bukutamu_entry.json` harus tetap disetel BERSAMAAN — dua tempat itu
+      sengaja diselaraskan, lihat catatan di `class-uploads.php`).
+    - Error validasi file (ukuran/jumlah berlebih) sekarang tampil di elemen terpisah
+      `.bukutamu-form__file-error`, ditaruh TEPAT di bawah drop-zone — bukan lagi memakai
+      `.bukutamu-form__alert` yang letaknya jauh di atas. `showAlert()` tetap dipakai khusus
+      untuk hasil submit (sukses/gagal API), `showFileError()`/`hideFileError()` baru khusus
+      untuk validasi pemilihan file di client.
+    **Aturan umum:** kalau ada batas validasi client-side (ukuran file, jumlah, dll), pesan
+    error-nya WAJIB tampil di dekat kontrol yang relevan (dekat drop-zone), bukan di kotak
+    alert generik yang jauh dari fokus mata user saat itu — kalau tidak, dari sudut pandang
+    user gejalanya akan terlihat seperti "fitur tidak berfungsi" padahal sebenarnya validasi
+    bekerja dengan benar, cuma pesannya tidak pernah terlihat. Untuk debugging serupa di masa
+    depan (submission publik yang "gagal tanpa alasan jelas"), reproduksi END-TO-END via
+    `curl`/HTTP request sungguhan (replikasi persis apa yang dilakukan JS: load halaman → ambil
+    nonce asli → tunggu jeda anti-bot → POST) jauh lebih meyakinkan daripada hanya membaca kode
+    — itu langsung memisahkan "bug di server" dari "bug di client sebelum request terkirim".
+
+### 2026-08-17 — 403 "Sesi form kedaluwarsa" yang konsisten, hanya saat admin ikut login di browser yang sama
+
+28. **User terus melaporkan 403 `bukutamu_invalid_nonce` walau sudah hard-refresh berkali-kali** —
+    reproduksi via `curl` murni anonim (tanpa cookie) SELALU berhasil, jadi kode
+    `Bukutamu_Security`/`class-rest-api.php` sendiri tidak salah. Yang berbeda dari kondisi
+    user: mereka menguji form publik di browser yang SAMA dengan sesi login wp-admin mereka
+    (wajar, karena mereka developer/pemilik situs yang sedang menguji plugin sendiri).
+    **Root cause: WordPress Core, BUKAN kode plugin.** `rest_cookie_check_errors()` di
+    `wp-includes/rest-api.php` berjalan untuk **SETIAP** request REST API, independen dari
+    `permission_callback` custom apa pun (termasuk `__return_true` di `class-rest-api.php`).
+    Kalau browser membawa cookie login valid TAPI request tidak menyertakan `_wpnonce`/header
+    `X-WP-Nonce`, fungsi ini memanggil `wp_set_current_user( 0 )` — **memaksa request dianggap
+    logged-out**, dieksekusi SEBELUM callback plugin (`handle_submit`) sempat jalan. Karena
+    nonce `bukutamu_submit` yang tertanam di HTML dibuat saat halaman di-render (uid = admin
+    yang sedang login), tapi diverifikasi setelah uid dipaksa jadi 0 oleh WP Core, kedua nilai
+    itu TIDAK PERNAH cocok — `wp_verify_nonce()` gagal 100% dari waktu, bukan sesekali/flaky.
+    Diverifikasi dengan simulasi in-process (`wp_set_current_user()` bolak-balik + `wp_create_nonce`/
+    `wp_verify_nonce` langsung, TANPA membuat cookie/session login sungguhan): kondisi "tanpa
+    header X-WP-Nonce" terbukti selalu GAGAL, kondisi "uid tidak direset" (setara dengan header
+    X-WP-Nonce valid dikirim) terbukti selalu LOLOS — pola ini reproducible, bukan tebakan.
+    **Perbaikan:** kirim nonce standar WP Core (action `'wp_rest'`, BEDA dari nonce anti-bot
+    custom `'bukutamu_submit'`) sebagai header `X-WP-Nonce` di setiap `fetch()` ke REST API —
+    ini praktik standar WordPress untuk skenario persis ini (lihat kenapa `wp_localize_script`
+    di banyak plugin resmi selalu menyertakan `nonce: wp_create_nonce('wp_rest')`). Ditambahkan
+    `restNonce` ke `bukutamuFormConfig` (`class-assets.php`) dan header `X-WP-Nonce` di
+    `fetch()` (`bukutamu-form.js`). Untuk pengunjung publik yang benar-benar anonim (tanpa
+    cookie login), header ini tidak berpengaruh apa pun — `rest_cookie_check_errors()` hanya
+    aktif kalau ada cookie login yang terdeteksi valid.
+    **Aturan umum untuk endpoint REST publik (`permission_callback => '__return_true'`) di masa
+    depan:** SELALU sertakan header `X-WP-Nonce` (action `wp_rest`) di setiap request `fetch()`
+    dari front-end, walau endpoint-nya memang untuk pengunjung anonim dan punya lapisan
+    keamanan sendiri (nonce custom/rate-limit/dll) — tanpa header itu, endpoint akan tampak
+    "rusak secara konsisten" khusus untuk siapa pun yang KEBETULAN juga login di browser yang
+    sama (developer/admin situs sendiri termasuk paling rentan mengalami ini saat testing),
+    padahal endpoint-nya sendiri tidak salah sama sekali. **Cara diagnosis paling efektif untuk
+    kasus "gagal konsisten, tapi kode terlihat benar":** kalau reproduksi anonim (curl tanpa
+    cookie) berhasil tapi user tetap gagal, curigai perbedaan STATE BROWSER (cookie/login),
+    bukan buru-buru menyalahkan ulang kode yang sudah terbukti benar secara anonim — baca
+    source `wp-includes/rest-api.php` langsung untuk memastikan, bukan menebak dari nama fungsi.
+
+### 2026-08-17 — Redirect ke halaman "Terima Kasih" setelah submit berhasil
+
+29. **Redirect tujuan disimpan per-instance shortcode (atribut `redirect`), BUKAN di
+    `bukutamuFormConfig` global.** `bukutamuFormConfig` (dari `wp_localize_script`) adalah
+    SATU objek JS yang dipakai bersama oleh semua `<form class="bukutamu-form">` di halaman
+    yang sama — kalau URL redirect ditaruh di situ, tidak bisa berbeda antar instance form (mis.
+    kalau suatu saat ada dua form beda tujuan di halaman yang sama) dan lebih ribet untuk tetap
+    backward-compatible (harus selalu ada nilai, tidak bisa "kosong berarti tidak redirect" per
+    form). Solusi yang dipakai: URL redirect dirender sebagai atribut `data-redirect-url`
+    langsung di elemen `<form>` itu sendiri (dari atribut shortcode `[bukutamu_form redirect="URL"]`,
+    lihat `Bukutamu_Shortcode::render_form()`), dibaca `bukutamu-form.js` dari
+    `form.getAttribute('data-redirect-url')` saat submit berhasil. Atribut kosong/tidak ada =
+    perilaku lama (pesan sukses inline, tanpa redirect) — backward compatible untuk pemasangan
+    `[bukutamu_form]` yang sudah ada sebelum fitur ini, tanpa perlu migrasi apa pun.
+    **Halaman "Terima Kasih" adalah Page WordPress biasa** (bukan route/URL yang di-hardcode di
+    kode plugin) berisi shortcode `[bukutamu_terima_kasih]`, dipasang admin dengan pola PERSIS
+    sama seperti Page form (page template "Buku Tamu — Tanpa Header/Footer", lihat bagian
+    "Halaman Standalone") — konsisten dengan filosofi plugin ini: konten & routing halaman
+    publik selalu lewat mekanisme Page + shortcode WordPress standar, bukan endpoint custom
+    baru, supaya admin bisa mengedit/memindah/menghapus halaman ini kapan saja lewat wp-admin
+    tanpa sentuh kode.
 
 <!-- Tambahkan entri baru di bawah ini seiring development berjalan -->
 
