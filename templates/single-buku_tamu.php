@@ -55,7 +55,7 @@ if ( have_posts() ) :
 					<?php endif; ?>
 				</div>
 
-				<p class="bt-text-sm bt-italic bt-leading-relaxed bt-text-slate-600">&ldquo;<?php echo esc_html( $kesan_pesan ); ?>&rdquo;</p>
+				<p class="bt-text-sm bt-italic bt-leading-relaxed bt-text-slate-600">&ldquo;<?php echo wp_kses( $kesan_pesan, [ 'br' => [] ] ); ?>&rdquo;</p>
 
 				<?php if ( ! empty( $galeri ) ) : ?>
 					<div>

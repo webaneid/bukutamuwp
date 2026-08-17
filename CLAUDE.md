@@ -687,6 +687,41 @@ mana yang me-render-nya.
     baru, supaya admin bisa mengedit/memindah/menghapus halaman ini kapan saja lewat wp-admin
     tanpa sentuh kode.
 
+### 2026-08-17 — Tag `<p>` bocor jadi teks mentah di halaman single
+
+30. **User melaporkan halaman single menampilkan literal `"<p>ini adalah sebuah testimoni
+    keren</p>"` alih-alih teks biasa.** Dicek dulu isi mentah di database (BUKAN langsung
+    menebak/mengubah kode) — `postmeta.kesan_pesan` ternyata cuma `'ini adalah sebuah testimoni
+    keren'`, TIDAK ada tag HTML sama sekali. Jadi tag `<p>` itu bukan data tersimpan yang rusak,
+    melainkan hasil transformasi `get_field()` saat DIBACA: field `kesan_pesan` di
+    `acf-json/group_bukutamu_entry.json` diset `"new_lines": "wpautop"` (bikin ACF otomatis
+    membungkus teks polos dengan `<p>...</p>` setiap kali `get_field()` dipanggil), sementara
+    `templates/single-buku_tamu.php` menampilkannya lewat `esc_html()` — yang mengubah tag
+    `<p>` hasil wpautop itu jadi teks literal `&lt;p&gt;...&lt;/p&gt;` alih-alih strip/render.
+    **Kenapa kartu testimoni/arsip TIDAK kena bug yang sama** meski pakai field & `get_field()`
+    yang persis sama: `templates/testimoni-card.php` memanggil `wp_trim_words()` untuk memotong
+    teks jadi cuplikan, dan `wp_trim_words()` MEMANG memanggil `wp_strip_all_tags()` di awal
+    (lihat `wp-includes/formatting.php`) — jadi tag `<p>` bawaan wpautop kebetulan terhapus di
+    situ sebelum sempat di-`esc_html()`. Halaman single menampilkan teks LENGKAP (tanpa
+    `wp_trim_words()`), jadi tidak ada langkah yang diam-diam membuang tag itu.
+    **Perbaikan:** `new_lines` diganti dari `"wpautop"` ke `"br"` (baris baru → `<br />`, TANPA
+    pembungkus `<p>` — menghindari `<p>` bersarang di dalam `<p class="...">` dekoratif milik
+    template) + `templates/single-buku_tamu.php` diubah dari `esc_html( $kesan_pesan )` menjadi
+    `wp_kses( $kesan_pesan, [ 'br' => [] ] )` supaya `<br>` hasil ACF dirender sebagai baris
+    baru sungguhan, sementara tag lain (kalau suatu saat ada) tetap dibuang — bukan sekadar
+    dihilangkan `esc_html()`-nya begitu saja, karena tanpa whitelist eksplisit itu berarti
+    mempercayai HTML apa pun dari `get_field()` mentah-mentah.
+    **Aturan umum:** kalau ACF field textarea diset `new_lines` selain kosong (`wpautop`/`br`),
+    `get_field()` TIDAK mengembalikan teks polos — dia mengembalikan HTML jadi. Template yang
+    menampilkannya WAJIB pilih salah satu secara sadar: (a) `new_lines` dikosongkan + tetap
+    `esc_html()` kalau memang tidak butuh baris baru sama sekali, atau (b) `new_lines: "br"` +
+    `wp_kses( $value, [ 'br' => [] ] )` (bukan `esc_html()` mentah) kalau baris baru perlu
+    dipertahankan — jangan campur `new_lines` aktif dengan `esc_html()` polos, itu selalu
+    menghasilkan tag bocor jadi teks seperti kasus ini. Untuk debugging serupa: SELALU cek nilai
+    MENTAH di database dulu (`$wpdb` langsung, bukan lewat `get_field()`) sebelum menyimpulkan
+    apakah masalahnya di data tersimpan atau di transformasi saat baca/tampil — dua penyebab itu
+    butuh perbaikan yang sama sekali berbeda.
+
 <!-- Tambahkan entri baru di bawah ini seiring development berjalan -->
 
 ## Sistem Update Plugin (GitHub Releases)

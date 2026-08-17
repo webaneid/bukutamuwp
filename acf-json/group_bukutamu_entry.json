@@ -99,7 +99,7 @@
             "maxlength": "1000",
             "placeholder": "Tuliskan kesan dan pesan Anda...",
             "rows": 4,
-            "new_lines": "wpautop"
+            "new_lines": "br"
         },
         {
             "key": "field_bukutamu_ttd",
@@ -221,5 +221,5 @@
     "active": true,
     "description": "Field data entri Buku Tamu. Dikelola via ACF Local JSON — lihat CLAUDE.md sebelum mengedit lewat UI.",
     "show_in_rest": 0,
-    "modified": 1786942152
+    "modified": 1786943343
 }
