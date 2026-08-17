@@ -91,6 +91,26 @@ final class Bukutamu_Updater {
 	}
 
 	/**
+	 * URL paket ZIP yang dipakai untuk instal/update. Prioritas: asset ZIP yang di-upload
+	 * manual ke Release (lewat bin/release.sh) — isinya sudah dikemas benar (folder
+	 * "bukutamu/", cuma file runtime, tanpa file dev). Fallback ke `zipball_url` (source zip
+	 * otomatis GitHub) HANYA kalau rilis tidak punya asset ZIP — folder di dalamnya bernama
+	 * "{repo}-{hash}", makanya `fix_source_folder_name()` tetap dipertahankan sebagai jaring
+	 * pengaman, bukan dihapus, untuk skenario fallback ini.
+	 */
+	private function get_package_url( object $release ): string {
+		if ( ! empty( $release->assets ) && is_array( $release->assets ) ) {
+			foreach ( $release->assets as $asset ) {
+				if ( ! empty( $asset->browser_download_url ) && preg_match( '/\.zip$/i', (string) ( $asset->name ?? '' ) ) ) {
+					return $asset->browser_download_url;
+				}
+			}
+		}
+
+		return (string) $release->zipball_url;
+	}
+
+	/**
 	 * Suntik info update ke transient bawaan WordPress — mekanisme yang sama dipakai plugin
 	 * resmi WordPress.org, supaya "Ada pembaruan" muncul normal di halaman Plugins tanpa UI
 	 * custom tambahan.
@@ -116,7 +136,7 @@ final class Bukutamu_Updater {
 			'plugin'       => BUKUTAMU_BASENAME,
 			'new_version'  => $remote_version,
 			'url'          => 'https://github.com/' . self::GITHUB_REPO,
-			'package'      => $release->zipball_url,
+			'package'      => $this->get_package_url( $release ),
 			'tested'       => get_bloginfo( 'version' ),
 			'requires'     => '6.0',
 			'requires_php' => '7.4',
@@ -153,7 +173,7 @@ final class Bukutamu_Updater {
 				'description' => '<p>' . esc_html__( 'Buku tamu digital untuk WordPress — Webane Indonesia.', 'bukutamu' ) . '</p>',
 				'changelog'   => $this->format_changelog( (string) ( $release->body ?? '' ) ),
 			],
-			'download_link' => $release->zipball_url,
+			'download_link' => $this->get_package_url( $release ),
 		];
 	}
 

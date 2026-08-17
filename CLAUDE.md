@@ -574,16 +574,31 @@ maupun download.
 
 **WAJIB setiap merilis versi baru:**
 1. Naikkan `BUKUTAMU_VERSION` di `bukutamu.php`.
-2. Push ke `main`.
-3. Buat GitHub Release dengan tag versi **berprefix `v`** (mis. `v0.3.0` untuk
-   `BUKUTAMU_VERSION = '0.3.0'` — prefix "v" di-strip otomatis saat `version_compare()`, lihat
-   `get_remote_version()`).
+2. Commit & push ke `main`.
+3. Jalankan `bin/release.sh` — build Tailwind, kemas ulang jadi `bukutamu.zip` yang BERSIH
+   (folder `bukutamu/`, cuma file runtime: `bukutamu.php`, `uninstall.php`, `acf-json/`,
+   `assets/`, `build/`, `includes/`, `templates/` — TANPA `node_modules/`, `src/`,
+   `package*.json`, `.git*`, `CLAUDE.md`, `README.md`), lalu otomatis
+   `gh release create`/`gh release upload` dengan tag `vX.Y.Z` + asset zip itu.
+
+**Jangan pakai `gh release create` manual tanpa asset zip** — tanpa asset, GitHub memakai zip
+source otomatisnya sendiri (`zipball_url`) yang: (a) ikut membawa semua file dev (tidak rapi
+untuk didownload manual orang lain), dan (b) folder di dalamnya bernama `bukutamuwp-{versi}`,
+bukan `bukutamu` (berisiko salah kenali sebagai plugin terpisah saat auto-update, lihat
+mitigasi `upgrader_source_selection` di bawah — tetap dipertahankan sebagai fallback, tapi
+asset zip yang benar dari `bin/release.sh` menghindari masalah ini sejak awal).
 
 Tanpa Release baru (bukan cuma commit/push biasa), plugin TIDAK AKAN PERNAH terdeteksi ada
 update — `class-updater.php` khusus membaca endpoint "latest release", bukan commit/branch
 terbaru. Ini konsekuensi memilih GitHub Releases (bukan "watch commit terbaru di branch") —
 sengaja, supaya update hanya terjadi untuk rilis yang benar-benar dimaksudkan stabil, bukan
 setiap commit percobaan.
+
+**Download manual (bukan lewat auto-update):** siapa pun bisa download plugin siap-install
+langsung dari halaman Release, mis. `https://github.com/webaneid/bukutamuwp/releases/latest`
+→ unduh `bukutamu.zip` di bagian Assets → upload lewat wp-admin **Plugins > Add New > Upload
+Plugin**. Sudah diverifikasi end-to-end: download asset zip sungguhan dari URL publik lalu
+dicek isinya (folder `bukutamu/`, `bukutamu.php` dengan header plugin valid).
 
 **Mekanisme teknis penting:**
 - Cache 12 jam lewat transient (`bukutamu_github_release`) — GitHub API dibatasi 60
@@ -594,11 +609,12 @@ setiap commit percobaan.
   update otomatis WordPress berjalan lewat WP-Cron ('wp_update_plugins' event), yang BUKAN
   konteks `is_admin()`. Kalau di-guard, cek update background dua-kali-sehari tidak akan
   pernah jalan.
-- `zipball_url` dari GitHub API dipakai sebagai paket download — otomatis tersedia untuk
-  SETIAP tag/release tanpa perlu upload asset ZIP manual, tapi folder hasil ekstraknya
-  bernama `{repo}-{hash-singkat}`, bukan `bukutamu`. Filter `upgrader_source_selection`
-  me-rename folder itu sebelum WordPress memindahkannya ke `wp-content/plugins/` — tanpa ini,
-  WordPress akan menginstal plugin BARU yang terpisah, bukan meng-update yang sudah aktif.
+- `Bukutamu_Updater::get_package_url()` memilih paket download dengan prioritas: **asset ZIP**
+  di Release (dari `bin/release.sh`) dulu, baru fallback ke `zipball_url` (source zip otomatis
+  GitHub) kalau rilis tidak punya asset ZIP. Filter `upgrader_source_selection` tetap
+  dipertahankan sebagai jaring pengaman untuk skenario fallback itu — me-rename folder hasil
+  ekstrak `zipball_url` (`{repo}-{hash}`) jadi `bukutamu` sebelum WordPress memindahkannya ke
+  `wp-content/plugins/`, supaya dikenali sebagai update, bukan plugin baru yang terpisah.
 
 ## Roadmap Implementasi
 
