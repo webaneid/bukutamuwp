@@ -3,7 +3,7 @@
  * Plugin Name:       Buku Tamu
  * Plugin URI:        https://webane.com
  * Description:       Buku tamu digital untuk WordPress — form kunjungan publik dengan tanda tangan & galeri foto, moderasi admin, dan tampilan testimoni. Dikembangkan oleh Webane Indonesia.
- * Version:           0.2.4
+ * Version:           0.2.5
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Requires Plugins:  advanced-custom-fields-pro
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'BUKUTAMU_VERSION', '0.2.4' );
+define( 'BUKUTAMU_VERSION', '0.2.5' );
 define( 'BUKUTAMU_FILE', __FILE__ );
 define( 'BUKUTAMU_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BUKUTAMU_URL', plugin_dir_url( __FILE__ ) );

@@ -38,6 +38,9 @@ final class Bukutamu_Updater {
 			add_filter( 'plugins_api', [ self::$instance, 'plugin_info' ], 10, 3 );
 			add_filter( 'upgrader_source_selection', [ self::$instance, 'fix_source_folder_name' ], 10, 4 );
 			add_filter( 'upgrader_post_install', [ self::$instance, 'clear_cache_after_update' ], 10, 3 );
+			add_filter( 'plugin_action_links_' . BUKUTAMU_BASENAME, [ self::$instance, 'plugin_action_links' ] );
+			add_action( 'admin_init', [ self::$instance, 'handle_force_check' ] );
+			add_action( 'admin_notices', [ self::$instance, 'render_force_check_notice' ] );
 		}
 		return self::$instance;
 	}
@@ -237,5 +240,90 @@ final class Bukutamu_Updater {
 		}
 
 		return $response;
+	}
+
+	/**
+	 * Tautan "Cek Update" di baris plugin (halaman Plugins), sejajar dengan "Nonaktifkan" dkk
+	 * bawaan WordPress — pola yang sama dipakai plugin lain di situs ini (mis. Webane Database).
+	 * Cache 12 jam (Bukutamu_Updater::CACHE_KEY) membuat cek update otomatis WP-Cron terasa
+	 * lambat saat diuji manual; tautan ini memaksa fetch ulang ke GitHub API saat itu juga,
+	 * TANPA menunggu cache kedaluwarsa — supaya admin tidak perlu menunggu 12 jam atau meng-
+	 * utak-atik transient manual lewat wp-admin biasa untuk memverifikasi rilis baru terbaca.
+	 *
+	 * @param string[] $links
+	 * @return string[]
+	 */
+	public function plugin_action_links( array $links ): array {
+		if ( ! current_user_can( 'update_plugins' ) ) {
+			return $links;
+		}
+
+		$url = wp_nonce_url(
+			add_query_arg( 'bukutamu_check_update', '1', admin_url( 'plugins.php' ) ),
+			'bukutamu_check_update'
+		);
+
+		array_unshift( $links, '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Cek Update', 'bukutamu' ) . '</a>' );
+
+		return $links;
+	}
+
+	/**
+	 * Handler tautan "Cek Update" di atas — hapus cache GitHub Release DAN transient update
+	 * bawaan WP, lalu panggil `wp_update_plugins()` (fungsi core yang sama dipakai WP-Cron/
+	 * tombol "Periksa Lagi" di Dashboard > Updates) supaya hasilnya langsung ter-refresh saat
+	 * itu juga, bukan menunggu siklus cache/cron berikutnya.
+	 */
+	public function handle_force_check(): void {
+		if ( ! is_admin() || ! current_user_can( 'update_plugins' ) || empty( $_GET['bukutamu_check_update'] ) ) {
+			return;
+		}
+
+		check_admin_referer( 'bukutamu_check_update' );
+
+		delete_transient( self::CACHE_KEY );
+		delete_site_transient( 'update_plugins' );
+
+		if ( ! function_exists( 'wp_update_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/update.php';
+		}
+		wp_update_plugins();
+
+		wp_safe_redirect( add_query_arg( 'bukutamu_update_checked', '1', admin_url( 'plugins.php' ) ) );
+		exit;
+	}
+
+	/**
+	 * Notice hasil "Cek Update" — beda pesan tergantung apakah update ditemukan atau tidak,
+	 * supaya admin tahu pengecekan SUNGGUHAN terjadi (bukan cuma redirect kosong tanpa umpan
+	 * balik apa pun), termasuk saat hasilnya memang "sudah versi terbaru".
+	 */
+	public function render_force_check_notice(): void {
+		if ( ! is_admin() || empty( $_GET['bukutamu_update_checked'] ) || ! current_user_can( 'update_plugins' ) ) {
+			return;
+		}
+
+		$transient  = get_site_transient( 'update_plugins' );
+		$has_update = isset( $transient->response[ BUKUTAMU_BASENAME ] );
+
+		if ( $has_update ) {
+			$message = sprintf(
+				/* translators: %s: nomor versi baru */
+				__( 'Buku Tamu: update ke versi %s tersedia — silakan klik "Perbarui Sekarang" di bawah.', 'bukutamu' ),
+				$transient->response[ BUKUTAMU_BASENAME ]->new_version
+			);
+		} else {
+			$message = sprintf(
+				/* translators: %s: nomor versi yang sedang aktif */
+				__( 'Buku Tamu: sudah menggunakan versi terbaru (%s).', 'bukutamu' ),
+				BUKUTAMU_VERSION
+			);
+		}
+
+		printf(
+			'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
+			esc_attr( $has_update ? 'info' : 'success' ),
+			esc_html( $message )
+		);
 	}
 }

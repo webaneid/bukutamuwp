@@ -781,6 +781,27 @@ dicek isinya (folder `bukutamu/`, `bukutamu.php` dengan header plugin valid).
   ekstrak `zipball_url` (`{repo}-{hash}`) jadi `bukutamu` sebelum WordPress memindahkannya ke
   `wp-content/plugins/`, supaya dikenali sebagai update, bukan plugin baru yang terpisah.
 
+**Tautan "Cek Update" manual** — muncul di baris plugin ini di halaman **Plugins**, sejajar
+dengan "Nonaktifkan" dkk (pola yang sama dipakai plugin lain di situs ini, mis. Webane
+Database). Klik tautan ini menghapus paksa cache 12 jam (`bukutamu_github_release`) DAN
+transient `update_plugins` bawaan WP, lalu memanggil ulang `wp_update_plugins()` (fungsi core
+yang sama dipakai WP-Cron/tombol "Periksa Lagi") saat itu juga — tidak perlu menunggu siklus
+cache/cron berikutnya untuk memverifikasi rilis baru terbaca. Hasilnya (ada update / sudah versi
+terbaru) ditampilkan lewat notice di halaman Plugins setelah redirect. Implementasi:
+`Bukutamu_Updater::plugin_action_links()` / `handle_force_check()` / `render_force_check_notice()`.
+
+**PENTING kalau menguji update di server yang JUGA jadi tempat development plugin ini** (mis.
+`bukutamu.php` di server itu di-edit langsung, bukan diinstal dari Release/ZIP): "Periksa Lagi"
+di `update-core.php` atau tautan "Cek Update" TIDAK akan pernah menampilkan Buku Tamu selama
+`BUKUTAMU_VERSION` di file lokal sudah >= versi Release terbaru di GitHub — itu perilaku BENAR
+(`version_compare( $remote, BUKUTAMU_VERSION, '>' )` di `check_for_update()`), BUKAN tanda
+sistem update salah baca rilis. Untuk menguji end-to-end secara realistis, gunakan instalasi
+TERPISAH yang benar-benar diinstal dari ZIP Release lama (bukan folder kerja git plugin ini) —
+kalau update di-klik pada folder kerja git itu sendiri, WordPress akan MENGHAPUS ISI FOLDER
+plugin dulu sebelum mengekstrak versi baru, yang berarti folder `.git/` di dalamnya ikut
+terhapus (riwayat commit lokal hilang, walau remote GitHub tetap aman — perlu `git clone` ulang
+kalau ingin lanjut development di situ).
+
 ## Roadmap Implementasi
 
 1. ✅ **Scaffolding** — `bukutamu.php`, struktur folder, CPT, ACF JSON field group, cek dependency ACF PRO.
